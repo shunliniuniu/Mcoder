@@ -3,7 +3,7 @@ import requests
 def generate_text(prompt):
     response = requests.post(
         "https://api.deepseek.com/v1/chat/completions",
-        headers={"Authorization": "Bearer sk-cd25f998a69644ad97f4422f3727795a"},
+        headers={"Authorization": "Bearer sk-"},
         json={
             "model": "deepseek-chat",  #
             "messages": [{"role": "user", "content": prompt}],
