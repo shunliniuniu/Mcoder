@@ -19,8 +19,6 @@ logger = logging.getLogger(__name__)
 SAT_DATA_PATH = "sat.json"
 
 DEEPSEEKMATH_PROMPT = "{question}\nPlease reason step by step, and put your final answer within \\boxed{{}}."
-
-
 def clean_text(text: str) -> str:
     if not text:
         return ""
@@ -47,7 +45,6 @@ def load_sat_dataset(data_path: str, max_samples: Optional[int] = None) -> List[
     if max_samples and len(cleaned_data) > max_samples:
         cleaned_data = cleaned_data[:max_samples]
         logger.info(f"限制评估样本数为: {max_samples}")
-
     logger.info(f"加载SAT数据集: {len(cleaned_data)} 条样本")
     return cleaned_data
 
@@ -76,7 +73,6 @@ def load_model_and_tokenizer(base_model_path: str, adapter_path: str = None):
         logger.info(f"加载LoRA适配器: {adapter_path}")
         model = PeftModel.from_pretrained(model, adapter_path)
         logger.info("LoRA适配器加载完成")
-
     model.eval()
     logger.info(f"模型加载完成，使用设备: {model.device}")
     return model, tokenizer
@@ -89,7 +85,6 @@ def batch_generate_responses(
         batch_size: int = 4,
         max_new_tokens: int = 500
 ) -> List[Dict]:
-
     questions = [sample['question'] for sample in samples]
     ground_truths = [sample['answer'] for sample in samples]
     prompts = [DEEPSEEKMATH_PROMPT.format(question=q) for q in questions]
@@ -102,7 +97,6 @@ def batch_generate_responses(
         pad_to_multiple_of=8
     )
     inputs = {k: v.to(model.device) for k, v in inputs.items()}
-
     generation_config = GenerationConfig(
         max_new_tokens=max_new_tokens,
         do_sample=False,  # 贪婪解码
@@ -113,7 +107,6 @@ def batch_generate_responses(
         eos_token_id=tokenizer.eos_token_id,
         repetition_penalty=1.0,
     )
-
     try:
         with torch.no_grad():
             outputs = model.generate(
@@ -133,11 +126,8 @@ def batch_generate_responses(
                 'ground_truth': ground_truths[i],
                 'model_response': generated_text,
             }
-
             results.append(result_dict)
-
         return results
-
     except Exception as e:
         logger.error(f"批量生成答案时出错: {e}")
         return [{
@@ -163,28 +153,23 @@ def main():
                         help="最大生成token数")
     parser.add_argument("--batch_size", type=int, default=4,
                         help="批处理大小")
-
     args = parser.parse_args()
     start_time = time.time()
-
     # 创建输出目录
     os.makedirs(args.output_dir, exist_ok=True)
-
     try:
         # 显示配置信息
         logger.info("配置:")
-        logger.info(f"  基础模型: {args.base_model_path}")
-        logger.info(f"  适配器: {args.adapter_path}")
-        logger.info(f"  批处理大小: {args.batch_size}")
-        logger.info(f"  最大新token数: {args.max_new_tokens}")
+        logger.info(f"基础模型: {args.base_model_path}")
+        logger.info(f"适配器: {args.adapter_path}")
+        logger.info(f"批处理大小: {args.batch_size}")
+        logger.info(f"最大新token数: {args.max_new_tokens}")
         dataset = load_sat_dataset(SAT_DATA_PATH, args.max_samples)
         model, tokenizer = load_model_and_tokenizer(
             args.base_model_path,
             args.adapter_path
         )
-
         all_results = []
-
         logger.info("开始批量生成模型回答...")
         with tqdm(total=len(dataset), desc="处理样本", unit="sample") as pbar:
             for i in range(0, len(dataset), args.batch_size):
@@ -218,16 +203,13 @@ def main():
             },
             'responses': all_results
         }
-
         with open(results_file, 'w', encoding='utf-8') as f:
             json.dump(output_data, f, indent=2, ensure_ascii=False)
-
         logger.info(f"模型回答收集完成！")
-        logger.info(f"  总样本数: {len(all_results)}")
-        logger.info(f"  总耗时: {total_time:.1f}秒 ({total_time / 60:.1f}分钟)")
-        logger.info(f"  处理速度: {len(all_results) / (total_time / 3600):.1f} 样本/小时")
-        logger.info(f"  结果保存在: {results_file}")
-
+        logger.info(f"总样本数: {len(all_results)}")
+        logger.info(f"总耗时: {total_time:.1f}秒 ({total_time / 60:.1f}分钟)")
+        logger.info(f"处理速度: {len(all_results) / (total_time / 3600):.1f} 样本/小时")
+        logger.info(f"结果保存在: {results_file}")
     except KeyboardInterrupt:
         logger.info("处理被用户中断")
     except Exception as e:
