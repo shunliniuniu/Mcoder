@@ -11,26 +11,18 @@ from datasets import load_dataset
 import time
 from argparse import ArgumentParser
 import glob
-
-
 global_settings = None
 global_api = None
-
-
 def timestamp() -> str:
-
     nowtime = time.strftime('-%Y%m%d-%H%M', time.localtime(time.time()))
     return nowtime
-
 
 def save_jsonl(data: list, path: str, mode='w', add_timestamp=True, verbose=True) -> None:
     if add_timestamp:
         file_name = f"{path.replace('.jsonl', '')}{timestamp()}.jsonl"
     else:
         file_name = path
-
     os.makedirs(os.path.dirname(file_name), exist_ok=True)
-
     with open(file_name, mode, encoding='utf-8') as f:
         if verbose:
             for line in tqdm(data, desc='Saving data'):
@@ -38,7 +30,6 @@ def save_jsonl(data: list, path: str, mode='w', add_timestamp=True, verbose=True
         else:
             for line in data:
                 f.write(json.dumps(line, ensure_ascii=False) + '\n')
-
 
 def load_jsonl(path: str):
     try:
@@ -48,28 +39,21 @@ def load_jsonl(path: str):
         print(f"Error loading {path}: {str(e)}")
         return []
 
-
 def merge_batch_files(output_dir, base_filename, final_output_path):
     print("\n开始合并批次文件...")
-
     batch_pattern = os.path.join(output_dir, f"{base_filename}_batch_*.jsonl")
     batch_files = sorted(glob.glob(batch_pattern))
-
     if not batch_files:
         print("没有找到批次文件")
         return
-
     print(f"找到 {len(batch_files)} 个批次文件")
-
     all_results = []
     for batch_file in batch_files:
         print(f"正在合并: {os.path.basename(batch_file)}")
         batch_data = load_jsonl(batch_file)
         all_results.extend(batch_data)
-
     save_jsonl(all_results, final_output_path, mode='w', add_timestamp=False, verbose=False)
     print(f"合并完成！总共 {len(all_results)} 条记录保存到: {final_output_path}")
-
     print("正在删除临时批次文件...")
     for batch_file in batch_files:
         try:
@@ -77,8 +61,6 @@ def merge_batch_files(output_dir, base_filename, final_output_path):
             print(f"已删除: {os.path.basename(batch_file)}")
         except Exception as e:
             print(f"删除失败 {batch_file}: {e}")
-
-
 class API:
 
 
@@ -88,11 +70,9 @@ class API:
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
-
     def get_result(self, inputs, parameters=None):
         if parameters is None:
             parameters = {}
-
         payload = {
             "model": "deepseek-chat",
             "messages": [
@@ -103,7 +83,6 @@ class API:
             "max_tokens": 3072,
             "stop": ["<|eot_id|>"]
         }
-
         try:
             response = requests.post(self.api_url, headers=self.headers, json=payload)
             response.raise_for_status()
@@ -125,29 +104,24 @@ def process_wrapper(data):
         problem = data.get("problem", "")
         solution = data.get("solution", "")
         category = data.get("category", "")
-
         if not problem or not solution:
             print(f"Skipping item due to missing problem or solution")
             return None
         combined_text = f"Problem: {problem}\n\nSolution: {solution}"
-
         instruction = global_settings["instruction"].format(text=combined_text)
         system = global_settings["system"]
-
         parameters = {
             "system": system,
             "do_sample": False,
             "max_new_tokens": 3072,
             "stop_sequences": ['<|eot_id|>']
         }
-
         result = global_api.get_result(instruction, parameters)
         if result:
             result = result.replace("<|eot_id|>", "").strip("\n\t ")
         if "Computation Expression:" not in result or "Computation Result:" not in result:
             print(f"Skipping result without proper computation format")
             return None
-
         try:
             computation_result_section = result.split("Computation Result:")[1].strip()
             if not re.search(r"[-+]?\d+\.?\d*", computation_result_section):
@@ -165,7 +139,6 @@ def process_wrapper(data):
             "text": result,
             "category": category
         }
-
         return result_data
     except Exception as e:
         print(f"Error processing data: {str(e)}")
@@ -174,14 +147,11 @@ def process_wrapper(data):
 
 def process_batch(datas, batch_size, output_dir, base_filename, settings, api):
     total_batches = (len(datas) + batch_size - 1) // batch_size
-
     for batch_idx in range(total_batches):
         start_idx = batch_idx * batch_size
         end_idx = min(start_idx + batch_size, len(datas))
         batch_data = datas[start_idx:end_idx]
-
         print(f"\n处理批次 {batch_idx + 1}/{total_batches} (条目 {start_idx} 到 {end_idx - 1})")
-
         try:
             with Pool(12, initializer=init_worker, initargs=(settings, api)) as pool:
                 results = []
@@ -197,7 +167,6 @@ def process_batch(datas, batch_size, output_dir, base_filename, settings, api):
                     print(f"保存了 {len(results)} 条结果到批次文件")
                 else:
                     print(f"批次 {batch_idx + 1} 没有有效结果")
-
         except Exception as e:
             print(f"批次 {batch_idx + 1} 处理失败: {str(e)}")
             continue
@@ -207,21 +176,12 @@ def process_batch(datas, batch_size, output_dir, base_filename, settings, api):
 
 
 def main():
-
     input_file = r""
     output_dir = r""
-
     final_output_file = ""
-
     batch_size = 500
     start_from = 2500
     api_key = ""
-
-
-
-    # ===============================================
-
-    # Configuration
     settings = {
         "system": "You are a clever mathematical AI assistant who is good at identifying  computations and solving them using Mathematica.",
         "instruction": "You will be presented with a math problem and its solution. I need you to identify all the  computations in the solution. "
@@ -240,37 +200,22 @@ def main():
                        "Make sure each snippet can be executed individually. "
                        "The problem and solution are as follows: {text}\n\nThe computations are:",
     }
-
-    # Initialize API
     api = API(api_key)
-
-    # Load input file
     print(f"从文件加载数据: {input_file}")
     datas = load_jsonl(input_file)
     if not datas:
         print("没有加载到数据，退出程序")
         return
-
     print(f"加载了 {len(datas)} 条记录")
-
     if start_from is not None and start_from < len(datas):
         datas = datas[start_from:]
         print(f"从第 {start_from} 条开始处理，剩余 {len(datas)} 条记录")
-
-
     os.makedirs(output_dir, exist_ok=True)
-
     base_filename = "processed_math_data_remaining"
-
     final_output_path = os.path.join(output_dir, final_output_file)
-
     print(f"开始分批处理，批次大小: {batch_size}")
     process_batch(datas, batch_size, output_dir, base_filename, settings, api)
-
     merge_batch_files(output_dir, base_filename, final_output_path)
-
     print("所有处理完成！")
-
-
 if __name__ == "__main__":
     main()
