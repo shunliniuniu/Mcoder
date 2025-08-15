@@ -57,13 +57,8 @@ DEEPSEEKMATH_ASSISTANT_PROMPT_DICT = {
         "Please reason step by step using LaTeX for mathematical expressions "
         "and provide Mathematica code for computational steps where appropriate. "
         "Put your final answer within \\boxed{{}}.\n\nA: "
-    ),
-    "prompt_chinese": (
-        "User: {question}\n"
-        "请逐步推理解答，使用LaTeX格式表示数学表达式，"
-        "在适当的地方提供Mathematica代码进行计算。"
-        "将最终答案放在\\boxed{{}}中。\n\nA: "
-    ),
+    )
+   
 }
 
 
@@ -355,7 +350,7 @@ def extract_deepseekmath_dataset(example, use_math_assistant_prompt=True, use_ch
     formatted_input = prompt_format.format(question=example['question'])
     return {
         'input': formatted_input,
-        'output': example['answer'] + "<｜end▁of▁sentence｜>"
+        'output': example['answer'] + ""
     }
 
 
@@ -391,11 +386,8 @@ class DataCollatorForCausalLM(object):
                     tokenized_target = combined_ids[len(tokenized_source):]
 
                 input_ids.append(torch.tensor(combined_ids))
-                if not self.train_on_source:
-                    labels.append(torch.tensor(
-                        [IGNORE_INDEX for _ in range(len(tokenized_source))] + copy.deepcopy(tokenized_target)))
-                else:
-                    labels.append(torch.tensor(copy.deepcopy(combined_ids)))
+               
+                labels.append(torch.tensor(copy.deepcopy(combined_ids)))
             else:
                 input_ids.append(torch.tensor(tokenized_source))
 
@@ -527,7 +519,6 @@ def train():
     model = get_accelerate_model(args, checkpoint_dir=None)
 
     print_trainable_parameters(args, model)
-
 
     tokenizer = AutoTokenizer.from_pretrained(
         args.model_name_or_path,
