@@ -99,7 +99,7 @@ def batch_generate_responses(
     inputs = {k: v.to(model.device) for k, v in inputs.items()}
     generation_config = GenerationConfig(
         max_new_tokens=max_new_tokens,
-        do_sample=False,  # 贪婪解码
+        do_sample=False,  
         num_beams=1,
         temperature=1.0,
         top_p=1.0,
@@ -155,10 +155,10 @@ def main():
                         help="批处理大小")
     args = parser.parse_args()
     start_time = time.time()
-    # 创建输出目录
+    
     os.makedirs(args.output_dir, exist_ok=True)
     try:
-        # 显示配置信息
+       
         logger.info("配置:")
         logger.info(f"基础模型: {args.base_model_path}")
         logger.info(f"适配器: {args.adapter_path}")
